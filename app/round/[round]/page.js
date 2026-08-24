@@ -33,9 +33,12 @@ export default async function RoundPage({ params }) {
   if (roundNumber === 1) {
     content = (
       <Round1
-        questions={ROUND1.questions.map(({ prompt, options }) => ({
+        backgroundVideo={ROUND1.backgroundVideo}
+        questions={ROUND1.questions.map(({ prompt, options, clipSrc, fullSrc }) => ({
           prompt,
           options,
+          clipSrc,
+          fullSrc,
         }))}
       />
     );
@@ -52,7 +55,7 @@ export default async function RoundPage({ params }) {
       />
     );
   } else if (roundNumber === 3) {
-    content = <Round3 dishes={ROUND3.dishes} />;
+    content = <Round3 dishes={ROUND3.dishes} leafImage={ROUND3.leafImage} />;
   } else if (roundNumber === 4) {
     content = (
       <Round4 riddles={ROUND4.riddles.map(({ prompt }) => ({ prompt }))} />
