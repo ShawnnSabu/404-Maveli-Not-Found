@@ -17,7 +17,9 @@ import { ROUND1, ROUND2, ROUND3, ROUND4, TOTAL_ROUNDS } from "@/lib/answerKeys";
 // ============================================================================
 
 function normalizeText(value) {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 // Sequential-progress rule:
@@ -54,7 +56,7 @@ export async function POST(request) {
   ) {
     return NextResponse.json(
       { error: "Missing or invalid participant_id / round_id." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -63,7 +65,7 @@ export async function POST(request) {
   if (!started_at || Number.isNaN(startedMs)) {
     return NextResponse.json(
       { error: "Invalid or missing started_at." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -77,21 +79,21 @@ export async function POST(request) {
   if (pError || !participant) {
     return NextResponse.json(
       { error: "Participant not found." },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (participant.disqualified) {
     return NextResponse.json(
       { error: "Participant is disqualified." },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   if (participant.current_round !== roundNumber) {
     return NextResponse.json(
       { error: "This round is locked. Resume at your current round." },
-      { status: 409 }
+      { status: 409 },
     );
   }
 
@@ -108,37 +110,39 @@ export async function POST(request) {
     if (!question || !Number.isInteger(selected)) {
       return NextResponse.json(
         { error: "Invalid answer payload for round 1." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const priorCorrect = await getCorrectAttemptCount(participant.id, roundNumber);
+    const priorCorrect = await getCorrectAttemptCount(
+      participant.id,
+      roundNumber,
+    );
     if (questionIndex !== priorCorrect) {
       return NextResponse.json(
         { error: "Questions must be answered in order." },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     isCorrect = selected === question.answer;
   } else if (roundNumber === 2) {
-    const grid = answer?.grid;
-    const size = ROUND2.gridSize;
+    const order = answer?.order;
+    const tileCount = ROUND2.gridSize * ROUND2.gridSize;
 
-    const validGrid =
-      Array.isArray(grid) &&
-      grid.length === size &&
-      grid.every((row) => Array.isArray(row) && row.length === size);
+    const validOrder =
+      Array.isArray(order) &&
+      order.length === tileCount &&
+      [...order].sort((a, b) => a - b).every((value, index) => value === index);
 
-    if (!validGrid) {
+    if (!validOrder) {
       return NextResponse.json(
-        { error: "Invalid grid for round 2." },
-        { status: 400 }
+        { error: "Invalid tile order for round 2." },
+        { status: 400 },
       );
     }
 
-    isCorrect =
-      JSON.stringify(grid) === JSON.stringify(ROUND2.targetPattern);
+    isCorrect = JSON.stringify(order) === JSON.stringify(ROUND2.correctOrder);
   } else if (roundNumber === 3) {
     const order = answer?.order;
     const dishCount = ROUND3.dishes.length;
@@ -151,12 +155,11 @@ export async function POST(request) {
     if (!validOrder) {
       return NextResponse.json(
         { error: "Invalid order payload for round 3." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    isCorrect =
-      JSON.stringify(order) === JSON.stringify(ROUND3.correctOrder);
+    isCorrect = JSON.stringify(order) === JSON.stringify(ROUND3.correctOrder);
   } else if (roundNumber === 4) {
     const riddleIndex = Number(answer?.riddle_index);
     const riddle = ROUND4.riddles[riddleIndex];
@@ -164,15 +167,18 @@ export async function POST(request) {
     if (!riddle) {
       return NextResponse.json(
         { error: "Invalid riddle_index for round 4." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const priorCorrect = await getCorrectAttemptCount(participant.id, roundNumber);
+    const priorCorrect = await getCorrectAttemptCount(
+      participant.id,
+      roundNumber,
+    );
     if (riddleIndex !== priorCorrect) {
       return NextResponse.json(
         { error: "Riddles must be solved in order." },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -185,7 +191,7 @@ export async function POST(request) {
   const submittedAt = new Date();
   const timeTakenSeconds = Math.max(
     0,
-    Math.round(((submittedAt.getTime() - startedMs) / 1000) * 100) / 100
+    Math.round(((submittedAt.getTime() - startedMs) / 1000) * 100) / 100,
   );
 
   const { data: attempt, error: aError } = await supabase
@@ -206,7 +212,7 @@ export async function POST(request) {
     console.error("attempt insert failed:", aError);
     return NextResponse.json(
       { error: "Could not record attempt." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
