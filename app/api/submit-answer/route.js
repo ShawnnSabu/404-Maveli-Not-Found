@@ -119,12 +119,17 @@ export async function POST(request) {
       roundNumber,
     );
     if (questionIndex !== priorCorrect) {
+      // Client and server disagree on position (e.g. page was refreshed
+      // mid-round). Tell the client which question the server expects so it
+      // can resync instead of dead-ending.
       return NextResponse.json(
-        { error: "Questions must be answered in order." },
+        {
+          error: "Questions must be answered in order.",
+          expected_index: priorCorrect,
+        },
         { status: 409 },
       );
     }
-
     isCorrect = selected === question.answer;
   } else if (roundNumber === 2) {
     const order = answer?.order;
@@ -184,7 +189,10 @@ export async function POST(request) {
 
     if (questionIndex !== priorCorrect) {
       return NextResponse.json(
-        { error: "Riddles must be answered in order." },
+        {
+          error: "Riddles must be answered in order.",
+          expected_index: priorCorrect,
+        },
         { status: 409 },
       );
     }

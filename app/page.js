@@ -137,6 +137,7 @@ export default function Home() {
   const [view, setView] = useState("loading"); // loading | new | continuing | finished
   const [participant, setParticipant] = useState(null);
   const [name, setName] = useState("");
+  const [accessKey, setAccessKey] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -177,7 +178,7 @@ export default function Home() {
       const res = await fetch("/api/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, key: accessKey }),
       });
       const data = await res.json();
 
@@ -223,6 +224,18 @@ export default function Home() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your name"
+                maxLength={80}
+                className="w-full rounded-lg border border-[#E8B84B]/30 bg-[#0F2229] px-4 py-3 text-[#F7EFDD] placeholder:text-[#F7EFDD]/40 focus:border-[#E8B84B] focus:ring-2 focus:ring-[#E8B84B]/30 focus:outline-none"
+              />
+              <label htmlFor="accessKey" className="block text-sm font-semibold text-[#F7EFDD]">
+                Access key
+              </label>
+              <input
+                id="accessKey"
+                type="text"
+                value={accessKey}
+                onChange={(e) => setAccessKey(e.target.value)}
+                placeholder="Enter the event key"
                 maxLength={80}
                 className="w-full rounded-lg border border-[#E8B84B]/30 bg-[#0F2229] px-4 py-3 text-[#F7EFDD] placeholder:text-[#F7EFDD]/40 focus:border-[#E8B84B] focus:ring-2 focus:ring-[#E8B84B]/30 focus:outline-none"
               />

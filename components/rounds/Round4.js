@@ -7,6 +7,11 @@ import { LeaderboardLink } from "@/components/ProgressIndicator";
 
 const LOCK_DELAY = 3000;
 
+// localStorage key so a mid-round refresh resumes at the right riddle
+// (the server tracks progress by counting correct attempts, so the client
+// must stay in sync with it).
+const PROGRESS_KEY = "maveli_r4_progress";
+
 export default function Round4({ riddles }) {
   const [riddleIndex, setRiddleIndex] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -26,6 +31,19 @@ export default function Round4({ riddles }) {
   const bgVideoRef = useRef(null);
 
   const riddle = riddles[riddleIndex];
+
+  // Restore saved position after a mid-round refresh, and keep it saved.
+  useEffect(() => {
+    const saved = Number(localStorage.getItem(PROGRESS_KEY));
+    if (Number.isInteger(saved) && saved > 0 && saved < riddles.length) {
+      setRiddleIndex(saved);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(PROGRESS_KEY, String(riddleIndex));
+  }, [riddleIndex]);
 
   // Background video (carries its own soundtrack) — drop your licensed
   // file in at /media/round4/bg-video.mp4. It plays fixed behind
@@ -164,6 +182,21 @@ export default function Round4({ riddles }) {
     if (bgVideoRef.current) bgVideoRef.current.volume = 0.35;
 
     if (!ok) {
+      // Server disagrees on position (e.g. stale attempts after a refresh).
+      // Jump to the riddle the server actually expects and continue.
+      const expected = data?.expected_index;
+      if (
+        Number.isInteger(expected) &&
+        expected !== riddleIndex &&
+        expected < riddles.length
+      ) {
+        setRiddleIndex(expected);
+        setSelected(null);
+        setStartedAt(new Date().toISOString());
+        setFeedback(null);
+        setIsLocking(false);
+        return;
+      }
       setFeedback(data?.error || "Error submitting answer.");
       setIsLocking(false);
       return;
@@ -211,6 +244,7 @@ export default function Round4({ riddles }) {
   };
 
   if (finished) {
+    localStorage.removeItem(PROGRESS_KEY);
     return <Cutscene round={4} finished />;
   }
 

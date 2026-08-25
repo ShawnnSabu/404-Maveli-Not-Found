@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// POST /api/join  body: { name }
+// POST /api/join  body: { name, key }
 export async function POST(request) {
   let body;
   try {
@@ -13,6 +13,11 @@ export async function POST(request) {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) {
     return NextResponse.json({ error: "Name is required." }, { status: 400 });
+  }
+
+  const key = typeof body.key === "string" ? body.key.trim() : "";
+  if (key !== process.env.EVENT_ACCESS_KEY) {
+    return NextResponse.json({ error: "Incorrect access key." }, { status: 403 });
   }
 
   const { data, error } = await supabase

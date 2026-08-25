@@ -33,15 +33,7 @@ export default async function RoundPage({ params }) {
   if (roundNumber === 1) {
     content = (
       <Round1
-        backgroundVideo={ROUND1.backgroundVideo}
-        questions={ROUND1.questions.map(
-          ({ prompt, options, clipSrc, fullSrc }) => ({
-            prompt,
-            options,
-            clipSrc,
-            fullSrc,
-          }),
-        )}
+        questions={ROUND1.questions.map(({ answer, ...publicFields }) => publicFields)}
       />
     );
   } else if (roundNumber === 2) {
