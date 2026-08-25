@@ -282,26 +282,44 @@ export default function Round2({ imageSrc, gridSize, revealSeconds }) {
               </p>
             </div>
 
-            <div
-              className="relative z-10 mx-auto grid aspect-square w-full max-w-[520px] gap-1 rounded-3xl bg-white p-2 shadow-2xl"
-              style={{
-                gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
-              }}
-            >
-              {tiles.map((tileIndex, position) => (
-                <button
-                  key={position}
-                  onClick={() => handleTileClick(position)}
-                  className={[
-                    "relative aspect-square overflow-hidden transition-all duration-200",
-                    selectedTile === position
-                      ? "z-10 scale-95 rounded-xl ring-4 ring-orange-500"
-                      : "rounded-sm hover:scale-[0.97]",
-                  ].join(" ")}
-                  style={getTileStyle(tileIndex)}
-                  aria-label={`Tile ${position + 1}`}
+            {/* Puzzle — large and centered */}
+            <div className="flex w-full justify-center">
+              <div
+                className="relative z-10 grid aspect-square w-full max-w-[580px] gap-1 rounded-3xl bg-white p-3 shadow-2xl"
+                style={{
+                  gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+                }}
+              >
+                {tiles.map((tileIndex, position) => (
+                  <button
+                    key={position}
+                    onClick={() => handleTileClick(position)}
+                    className={[
+                      "relative aspect-square overflow-hidden transition-all duration-200",
+                      selectedTile === position
+                        ? "z-10 scale-95 rounded-xl ring-4 ring-orange-500"
+                        : "rounded-sm hover:scale-[0.97]",
+                    ].join(" ")}
+                    style={getTileStyle(tileIndex)}
+                    aria-label={`Tile ${position + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Original Pookalam — bottom right */}
+            <div className="fixed bottom-5 right-5 z-20 w-[280px] xl:w-[340px]">
+              <div className="rounded-3xl border-4 border-white bg-white p-4 shadow-2xl">
+                <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.2em] text-orange-600">
+                  Original Pookalam
+                </p>
+
+                <img
+                  src={currentImage}
+                  alt="Original Pookalam"
+                  className="w-full rounded-2xl object-cover"
                 />
-              ))}
+              </div>
             </div>
 
             <div className="relative z-10 mt-6">
