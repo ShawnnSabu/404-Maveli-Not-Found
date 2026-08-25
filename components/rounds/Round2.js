@@ -255,12 +255,15 @@ export default function Round2({ imageSrc, gridSize, revealSeconds }) {
         <div className="relative min-h-screen w-full overflow-hidden text-center">
           {showMemoryBackground && (
             <video
-              className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-80"
+              className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-100"
               src="/media/memory-tunnel.mp4"
               autoPlay
               loop
               muted
               playsInline
+              style={{
+                filter: "brightness(1.15) contrast(1.25) saturate(1.15)",
+              }}
             />
           )}
 
