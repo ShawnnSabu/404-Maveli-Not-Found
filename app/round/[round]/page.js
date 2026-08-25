@@ -34,12 +34,14 @@ export default async function RoundPage({ params }) {
     content = (
       <Round1
         backgroundVideo={ROUND1.backgroundVideo}
-        questions={ROUND1.questions.map(({ prompt, options, clipSrc, fullSrc }) => ({
-          prompt,
-          options,
-          clipSrc,
-          fullSrc,
-        }))}
+        questions={ROUND1.questions.map(
+          ({ prompt, options, clipSrc, fullSrc }) => ({
+            prompt,
+            options,
+            clipSrc,
+            fullSrc,
+          }),
+        )}
       />
     );
   } else if (roundNumber === 2) {
@@ -47,18 +49,21 @@ export default async function RoundPage({ params }) {
     // correctness is always judged server-side in /api/submit-answer.
     content = (
       <Round2
+        imageSrc={ROUND2.imageSrc}
         gridSize={ROUND2.gridSize}
-        palette={ROUND2.palette}
-        emptyColor={ROUND2.emptyColor}
         revealSeconds={ROUND2.revealSeconds}
-        targetPattern={ROUND2.targetPattern}
       />
     );
   } else if (roundNumber === 3) {
     content = <Round3 dishes={ROUND3.dishes} leafImage={ROUND3.leafImage} />;
   } else if (roundNumber === 4) {
     content = (
-      <Round4 riddles={ROUND4.riddles.map(({ prompt }) => ({ prompt }))} />
+      <Round4
+        riddles={ROUND4.riddles.map(({ prompt, options }) => ({
+          prompt,
+          options,
+        }))}
+      />
     );
   }
 

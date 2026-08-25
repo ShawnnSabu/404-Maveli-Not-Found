@@ -5,172 +5,348 @@ import { submitAnswer } from "@/lib/clientApi";
 import Cutscene from "@/components/Cutscene";
 import { LeaderboardLink } from "@/components/ProgressIndicator";
 
-// Round 2 — Pookalam Pattern Match.
-// Phases: ready -> reveal (target shown for N seconds) -> build -> result.
-export default function Round2({ gridSize, palette, emptyColor, revealSeconds, targetPattern }) {
-  const [phase, setPhase] = useState("ready"); // ready | reveal | build
-  const [countdown, setCountdown] = useState(revealSeconds);
-  const [grid, setGrid] = useState(() =>
-    Array.from({ length: gridSize }, () => Array(gridSize).fill(-1))
-  );
-  const [status, setStatus] = useState(null); // null | "checking" | "wrong" | error string
-  const [cutscene, setCutscene] = useState(false);
-  const startedAtRef = useRef(new Date().toISOString());
+const POOKALAM_IMAGES = [
+  "/media/pookalam1.jpg",
+  "/media/pookalam2.jpg",
+  "/media/pookalam3.jpg",
+];
 
-  // Countdown during the reveal phase.
+function shuffle(array) {
+  const result = [...array];
+
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  const solved = result.every((value, index) => value === index);
+
+  if (solved) {
+    [result[0], result[1]] = [result[1], result[0]];
+  }
+
+  return result;
+}
+
+export default function Round2({ imageSrc, gridSize, revealSeconds }) {
+  const [phase, setPhase] = useState("ready");
+  const [countdown, setCountdown] = useState(revealSeconds);
+  const [tiles, setTiles] = useState([]);
+  const [selectedTile, setSelectedTile] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [cutscene, setCutscene] = useState(false);
+  const [showMemoryBackground, setShowMemoryBackground] = useState(false);
+  const [currentImage, setCurrentImage] = useState(imageSrc);
+
+  const startedAtRef = useRef(null);
+  const wrongAudioRef = useRef(null);
+  const bgAudioRef = useRef(null);
+
+  const [wrongAudioPlaying, setWrongAudioPlaying] = useState(false);
+
+  const totalTiles = gridSize * gridSize;
+
+  useEffect(() => {
+    wrongAudioRef.current = new Audio("/media/wrong-pookalam.mp3");
+    wrongAudioRef.current.preload = "auto";
+
+    bgAudioRef.current = new Audio("/media/pookalam-bg.mp3");
+    bgAudioRef.current.preload = "auto";
+    bgAudioRef.current.loop = true;
+
+    return () => {
+      wrongAudioRef.current?.pause();
+      bgAudioRef.current?.pause();
+    };
+  }, []);
+
   useEffect(() => {
     if (phase !== "reveal") return;
+
     if (countdown <= 0) {
+      setTiles(shuffle(Array.from({ length: totalTiles }, (_, i) => i)));
+      setShowMemoryBackground(true);
+
+      if (bgAudioRef.current) {
+        bgAudioRef.current.currentTime = 0;
+        bgAudioRef.current.play().catch((error) => {
+          console.error("Background audio playback failed:", error);
+        });
+      }
+
       setPhase("build");
       return;
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, countdown]);
 
-  const startReveal = () => {
-    setGrid(Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)));
-    setCountdown(revealSeconds);
-    setStatus(null);
+    const timer = setTimeout(() => {
+      setCountdown((value) => value - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [phase, countdown, totalTiles]);
+
+  const startGame = () => {
+    if (wrongAudioRef.current) {
+      wrongAudioRef.current.pause();
+      wrongAudioRef.current.currentTime = 0;
+      setWrongAudioPlaying(false);
+    }
+
+    if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      bgAudioRef.current.currentTime = 0;
+    }
+
+    const randomImage =
+      POOKALAM_IMAGES[Math.floor(Math.random() * POOKALAM_IMAGES.length)];
+
+    setCurrentImage(randomImage);
+
     startedAtRef.current = new Date().toISOString();
+
+    setCountdown(revealSeconds);
+    setSelectedTile(null);
+    setStatus(null);
+    setShowMemoryBackground(false);
     setPhase("reveal");
   };
 
-  const cycleTile = (r, c) => {
+  const handleTileClick = (position) => {
     if (phase !== "build") return;
-    setGrid((g) =>
-      g.map((row, ri) =>
-        row.map((v, ci) =>
-          ri === r && ci === c ? (v + 1) % palette.length : v
-        )
-      )
-    );
+
+    if (selectedTile === null) {
+      setSelectedTile(position);
+      return;
+    }
+
+    if (selectedTile === position) {
+      setSelectedTile(null);
+      return;
+    }
+
+    setTiles((current) => {
+      const next = [...current];
+
+      [next[selectedTile], next[position]] = [
+        next[position],
+        next[selectedTile],
+      ];
+
+      return next;
+    });
+
+    setSelectedTile(null);
   };
 
   const handleSubmit = async () => {
+    if (!startedAtRef.current) return;
+
+    if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      bgAudioRef.current.currentTime = 0;
+    }
+
+    setShowMemoryBackground(false);
     setStatus("checking");
+
     const { ok, data } = await submitAnswer({
       roundId: 2,
-      answer: { grid },
+      answer: {
+        order: tiles,
+      },
       startedAt: startedAtRef.current,
     });
 
     if (!ok) {
-      setStatus(data.error || "Error submitting answer.");
+      setStatus(data?.error || "Error submitting answer.");
       return;
     }
+
     if (data.is_correct) {
       setCutscene(true);
     } else {
       setStatus("wrong");
+
+      if (wrongAudioRef.current) {
+        wrongAudioRef.current.currentTime = 0;
+        setWrongAudioPlaying(true);
+
+        wrongAudioRef.current.onended = () => {
+          setWrongAudioPlaying(false);
+        };
+
+        wrongAudioRef.current.play().catch((error) => {
+          console.error("Audio playback failed:", error);
+          setWrongAudioPlaying(false);
+        });
+      }
     }
   };
 
-  if (cutscene) return <Cutscene round={2} />;
+  const getTileStyle = (tileIndex) => {
+    const row = Math.floor(tileIndex / gridSize);
+    const col = tileIndex % gridSize;
+
+    return {
+      backgroundImage: `url(${currentImage})`,
+      backgroundSize: `${gridSize * 100}% ${gridSize * 100}%`,
+      backgroundPosition: `${(col * 100) / (gridSize - 1)}% ${(row * 100) / (gridSize - 1)}%`,
+    };
+  };
+
+  if (cutscene) {
+    return <Cutscene round={2} />;
+  }
 
   return (
-    <div className="w-full max-w-xl">
+    <div className="w-full max-w-2xl">
       {phase === "ready" && (
-        <div className="rounded-xl border border-orange-200 bg-white p-6 text-center shadow-sm">
-          <h2 className="text-xl font-bold">Pookalam Pattern Match</h2>
-          <p className="mt-2 text-stone-600">
-            Memorise the flower pattern — it will be shown for{" "}
-            {revealSeconds} seconds, then you rebuild it tile by tile. Click a
-            tile to cycle its colour.
+        <div className="rounded-3xl border border-orange-200 bg-white p-8 text-center shadow-lg">
+          <div className="mb-3 text-sm font-bold uppercase tracking-[0.3em] text-orange-600">
+            The Pookalam Challenge
+          </div>
+
+          <h2 className="text-3xl font-black text-stone-900">
+            Can you remember the Pookalam?
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-lg text-stone-600">
+            A beautiful Pookalam will appear for a few seconds. Memorise the
+            complete image and every tile position.
           </p>
+
           <button
-            onClick={startReveal}
-            className="mt-6 rounded-lg bg-fuchsia-700 px-8 py-3 font-bold text-white transition hover:bg-fuchsia-800"
+            onClick={startGame}
+            className="mt-8 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-8 py-4 text-lg font-black text-white shadow-lg transition hover:scale-105"
           >
-            Show the pattern
+            Reveal the Pookalam →
           </button>
         </div>
       )}
 
-      {(phase === "reveal" || phase === "build") && (
-        <>
-          <h2 className="text-center font-semibold">
-            {phase === "reveal"
-              ? `Memorise! Hiding in ${countdown}s…`
-              : "Rebuild the pattern"}
-          </h2>
+      {phase === "reveal" && (
+        <div className="text-center">
+          <div className="mb-5">
+            <p className="text-sm font-bold uppercase tracking-[0.3em] text-orange-600">
+              Memorise
+            </p>
 
-          <div className="mt-4 flex justify-center">
-            <div
-              className="grid gap-1 rounded-lg border border-stone-300 bg-white p-3 shadow-sm"
-              style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}
-            >
-              {Array.from({ length: gridSize }).flatMap((_, r) =>
-                Array.from({ length: gridSize }).map((__, c) => {
-                  const showTarget = phase === "reveal";
-                  const value = showTarget ? targetPattern[r][c] : grid[r][c];
-                  const color =
-                    value < 0 ? emptyColor : palette[value % palette.length];
-                  return (
-                    <button
-                      key={`${r}-${c}`}
-                      onClick={() => cycleTile(r, c)}
-                      disabled={!showTarget ? phase !== "build" : true}
-                      aria-label={`tile ${r}-${c}`}
-                      className={[
-                        "h-12 w-12 rounded transition-colors",
-                        !showTarget && phase === "build"
-                          ? "cursor-pointer hover:ring-2 hover:ring-stone-400"
-                          : "",
-                      ].join(" ")}
-                      style={{ backgroundColor: color }}
-                    />
-                  );
-                })
-              )}
-            </div>
+            <h2 className="mt-2 text-3xl font-black text-stone-900">
+              Remember the pattern
+            </h2>
+
+            <p className="mt-2 text-stone-500">
+              Disappearing in {countdown}s...
+            </p>
           </div>
 
-          {phase === "build" && (
-            <>
-              <div className="mt-6 flex items-center justify-center gap-4">
-                {palette.map((color, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1">
-                    <span
-                      className="inline-block h-6 w-6 rounded border border-stone-300"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span className="text-xs text-stone-500">{i + 1}</span>
-                  </div>
-                ))}
-              </div>
+          <div
+            className="mx-auto aspect-square w-full max-w-[520px] overflow-hidden rounded-3xl border-8 border-white shadow-2xl"
+            style={{
+              backgroundImage: `url(${currentImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+        </div>
+      )}
 
-              <div className="mt-6 flex justify-center gap-3">
+      {phase === "build" && (
+        <div className="relative min-h-screen w-full overflow-hidden text-center">
+          {showMemoryBackground && (
+            <video
+              className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-80"
+              src="/media/memory-tunnel.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          )}
+
+          <div className="relative z-10 w-full px-4 py-8">
+            <div className="mb-5">
+              <p className="text-sm font-bold uppercase tracking-[0.3em] text-orange-600">
+                Your Turn
+              </p>
+
+              <h2 className="mt-2 text-3xl font-black text-stone-900">
+                Recreate the Pookalam
+              </h2>
+
+              <p className="mx-auto mt-3 w-fit rounded-full bg-white/90 px-5 py-2 text-sm font-bold text-stone-800 shadow-md">
+                Tap two tiles to swap their positions.
+              </p>
+            </div>
+
+            <div
+              className="relative z-10 mx-auto grid aspect-square w-full max-w-[520px] gap-1 rounded-3xl bg-white p-2 shadow-2xl"
+              style={{
+                gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+              }}
+            >
+              {tiles.map((tileIndex, position) => (
                 <button
-                  onClick={handleSubmit}
-                  disabled={status === "checking"}
-                  className="rounded-lg bg-fuchsia-700 px-8 py-3 font-bold text-white transition hover:bg-fuchsia-800 disabled:opacity-50"
-                >
-                  {status === "checking" ? "Checking…" : "Submit pattern"}
-                </button>
-              </div>
+                  key={position}
+                  onClick={() => handleTileClick(position)}
+                  className={[
+                    "relative aspect-square overflow-hidden transition-all duration-200",
+                    selectedTile === position
+                      ? "z-10 scale-95 rounded-xl ring-4 ring-orange-500"
+                      : "rounded-sm hover:scale-[0.97]",
+                  ].join(" ")}
+                  style={getTileStyle(tileIndex)}
+                  aria-label={`Tile ${position + 1}`}
+                />
+              ))}
+            </div>
 
-              {status === "wrong" && (
-                <div className="mt-4 text-center">
-                  <p className="text-red-600">
-                    Not quite — compare your pattern again and retry.
+            <div className="relative z-10 mt-6">
+              <button
+                onClick={handleSubmit}
+                disabled={status === "checking"}
+                className="rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-10 py-4 text-lg font-black text-white shadow-lg transition hover:scale-105 disabled:opacity-50"
+              >
+                {status === "checking" ? "Checking..." : "Submit Pookalam →"}
+              </button>
+            </div>
+
+            {status === "wrong" && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+                <div className="w-full max-w-md rounded-3xl border border-orange-200 bg-white p-8 text-center shadow-2xl">
+                  <div className="mb-4 text-7xl animate-bounce">😄</div>
+
+                  <div className="mb-2 text-sm font-bold uppercase tracking-[0.25em] text-orange-500">
+                    Pookalam Challenge
+                  </div>
+
+                  <h3 className="text-3xl font-black text-stone-900">
+                    Oops! Not quite!
+                  </h3>
+
+                  <p className="mx-auto mt-3 max-w-sm text-base font-medium leading-relaxed text-stone-600">
+                    Your Pookalam is a little mixed up.
+                    <br />
+                    Let's see if you can get it this time!
                   </p>
+
                   <button
-                    onClick={startReveal}
-                    className="mt-3 underline text-stone-600"
+                    onClick={startGame}
+                    className="mt-7 w-full rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-7 py-4 text-lg font-black text-white shadow-lg transition hover:scale-[1.03] active:scale-95"
                   >
-                    Show the pattern once more & restart attempt
+                    🔄 Try Again
                   </button>
                 </div>
+              </div>
+            )}
+
+            {typeof status === "string" &&
+              status !== "wrong" &&
+              status !== "checking" && (
+                <p className="relative z-10 mt-4 text-red-600">{status}</p>
               )}
-              {typeof status === "string" &&
-                status !== "wrong" &&
-                status !== "checking" && (
-                  <p className="mt-4 text-center text-red-600">{status}</p>
-                )}
-            </>
-          )}
-        </>
+          </div>
+        </div>
       )}
 
       <LeaderboardLink />
