@@ -40,13 +40,24 @@ export default function Round2({ imageSrc, gridSize, revealSeconds }) {
 
   const startedAtRef = useRef(null);
   const wrongAudioRef = useRef(null);
+  const bgAudioRef = useRef(null);
 
   const [wrongAudioPlaying, setWrongAudioPlaying] = useState(false);
 
   const totalTiles = gridSize * gridSize;
+
   useEffect(() => {
     wrongAudioRef.current = new Audio("/media/wrong-pookalam.mp3");
     wrongAudioRef.current.preload = "auto";
+
+    bgAudioRef.current = new Audio("/media/pookalam-bg.mp3");
+    bgAudioRef.current.preload = "auto";
+    bgAudioRef.current.loop = true;
+
+    return () => {
+      wrongAudioRef.current?.pause();
+      bgAudioRef.current?.pause();
+    };
   }, []);
 
   useEffect(() => {
@@ -55,6 +66,14 @@ export default function Round2({ imageSrc, gridSize, revealSeconds }) {
     if (countdown <= 0) {
       setTiles(shuffle(Array.from({ length: totalTiles }, (_, i) => i)));
       setShowMemoryBackground(true);
+
+      if (bgAudioRef.current) {
+        bgAudioRef.current.currentTime = 0;
+        bgAudioRef.current.play().catch((error) => {
+          console.error("Background audio playback failed:", error);
+        });
+      }
+
       setPhase("build");
       return;
     }
@@ -71,6 +90,11 @@ export default function Round2({ imageSrc, gridSize, revealSeconds }) {
       wrongAudioRef.current.pause();
       wrongAudioRef.current.currentTime = 0;
       setWrongAudioPlaying(false);
+    }
+
+    if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      bgAudioRef.current.currentTime = 0;
     }
 
     const randomImage =
@@ -116,6 +140,11 @@ export default function Round2({ imageSrc, gridSize, revealSeconds }) {
 
   const handleSubmit = async () => {
     if (!startedAtRef.current) return;
+
+    if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      bgAudioRef.current.currentTime = 0;
+    }
 
     setShowMemoryBackground(false);
     setStatus("checking");

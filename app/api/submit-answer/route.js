@@ -10,7 +10,7 @@ import { ROUND1, ROUND2, ROUND3, ROUND4, TOTAL_ROUNDS } from "@/lib/answerKeys";
 //   round 1: { question_index: <int>, selected: <int option index> }
 //   round 2: { grid: <int[gridSize][gridSize]> }   (palette indexes)
 //   round 3: { order: <int[]> }                    (indexes into dishes)
-//   round 4: { riddle_index: <int>, text: <string> }
+//   round 4: { question_index: <int>, selected: <int option index> }
 //
 // All correct values come exclusively from lib/answerKeys.js and are never
 // included in any response.
@@ -161,30 +161,36 @@ export async function POST(request) {
 
     isCorrect = JSON.stringify(order) === JSON.stringify(ROUND3.correctOrder);
   } else if (roundNumber === 4) {
-    const riddleIndex = Number(answer?.riddle_index);
-    const riddle = ROUND4.riddles[riddleIndex];
+    const questionIndex = Number(answer?.question_index);
+    const selected = Number(answer?.selected);
 
-    if (!riddle) {
+    const riddle = ROUND4.riddles[questionIndex];
+
+    if (!riddle || !Number.isInteger(selected)) {
       return NextResponse.json(
-        { error: "Invalid riddle_index for round 4." },
+        { error: "Invalid answer payload for round 4." },
         { status: 400 },
       );
+    }
+
+    if (selected < 0 || selected >= riddle.options.length) {
+      return NextResponse.json({ error: "Invalid option." }, { status: 400 });
     }
 
     const priorCorrect = await getCorrectAttemptCount(
       participant.id,
       roundNumber,
     );
-    if (riddleIndex !== priorCorrect) {
+
+    if (questionIndex !== priorCorrect) {
       return NextResponse.json(
-        { error: "Riddles must be solved in order." },
+        { error: "Riddles must be answered in order." },
         { status: 409 },
       );
     }
 
-    isCorrect = normalizeText(answer?.text) === normalizeText(riddle.answer);
+    isCorrect = selected === riddle.answer;
   }
-
   // ------------------------------------------------------------------
   // Record the attempt + compute time_taken server-side
   // ------------------------------------------------------------------

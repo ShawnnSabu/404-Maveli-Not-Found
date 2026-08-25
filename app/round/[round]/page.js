@@ -58,7 +58,12 @@ export default async function RoundPage({ params }) {
     content = <Round3 dishes={ROUND3.dishes} leafImage={ROUND3.leafImage} />;
   } else if (roundNumber === 4) {
     content = (
-      <Round4 riddles={ROUND4.riddles.map(({ prompt }) => ({ prompt }))} />
+      <Round4
+        riddles={ROUND4.riddles.map(({ prompt, options }) => ({
+          prompt,
+          options,
+        }))}
+      />
     );
   }
 
